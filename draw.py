@@ -1,210 +1,188 @@
 #!/usr/bin/env python3
-"""Draw entry.png: one-page summary of 20 November 2026 world news.
+"""One-page picture of Friday 20 November 2026: four stories, three continents.
 
-Deterministic: no clock, no randomness. Same script -> same bytes.
-4 stories, 3 continents (Asia x2, Europe x1, North America x1).
-Title: 20 November 2026 - 4 Stories, 3 Continents, One Page - Hormuz Edition.
+Drawn fresh with Pillow. No clock, no random numbers, so running it twice
+writes the same file both times. Title: 20 November 2026, 4 Stories,
+3 Continents, One Page, Hormuz Edition.
 """
-import textwrap
+from PIL import Image as Canvas
+from PIL import ImageDraw as Pen
+from PIL import ImageFont as Type
 
-from PIL import Image, ImageDraw, ImageFont
+PAGE = 1024
 
-CANVAS_W, CANVAS_H = 1024, 1024
-OUT_PATH = "entry.png"
-FONTS = "/usr/share/fonts/truetype/dejavu/"
+PAINT = {
+    "navy": (27, 42, 74),
+    "cream": (247, 243, 234),
+    "ink": (30, 30, 34),
+    "grey": (70, 70, 76),
+    "gold": (201, 162, 39),
+    "sea": (226, 236, 242),
+    "sea_edge": (200, 210, 218),
+    "orange": (232, 122, 54),
+    "blue": (64, 120, 200),
+    "green": (46, 160, 120),
+    "flat": (196, 198, 192),
+    "white": (255, 255, 255),
+    "card_edge": (214, 210, 200),
+    "soft": (214, 222, 235),
+}
 
 
-def load(name, size):
-    return ImageFont.truetype(FONTS + name, size)
+def typeface(bold, px):
+    stem = "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf"
+    return Type.truetype("/usr/share/fonts/truetype/dejavu/" + stem, px)
 
 
-TITLE_F = load("DejaVuSans-Bold.ttf", 62)
-SUB_F = load("DejaVuSans-Bold.ttf", 30)
-BADGE_F = load("DejaVuSans-Bold.ttf", 24)
-CONT_F = load("DejaVuSans-Bold.ttf", 22)
-NUM_F = load("DejaVuSans-Bold.ttf", 20)
-HEAD_F = load("DejaVuSans-Bold.ttf", 27)
-BODY_F = load("DejaVuSans.ttf", 21)
-TAG_F = load("DejaVuSans-Bold.ttf", 18)
+BIG = typeface(True, 62)
+SUB = typeface(True, 30)
+EDITION = typeface(True, 24)
+PLACE = typeface(True, 22)
+PIN = typeface(True, 20)
+HEAD = typeface(True, 27)
+BODY = typeface(False, 21)
+TAG = typeface(True, 18)
 
-NAVY = (27, 42, 74)
-CREAM = (247, 243, 234)
-INK = (30, 30, 34)
-BODY_GREY = (70, 70, 76)
-GOLD = (201, 162, 39)
-SEA = (226, 236, 242)
-SEA_LINE = (200, 210, 218)
-ORANGE = (232, 122, 54)
-BLUE = (64, 120, 200)
-GREEN = (46, 160, 120)
-GREY_LAND = (196, 198, 192)
-WHITE = (255, 255, 255)
-CARD_LINE = (214, 210, 200)
-
-STORIES = [
-    {
-        "n": 1,
-        "head": "Ukraine hits Crimea bridge again",
-        "body": "Putin drops the sea and energy ceasefire.",
-        "tag": "EUROPE",
-        "colour": BLUE,
-    },
-    {
-        "n": 2,
-        "head": "UN court: Myanmar genocide",
-        "body": "Judges rule the state committed genocide against the Rohingya.",
-        "tag": "ASIA",
-        "colour": ORANGE,
-    },
-    {
-        "n": 3,
-        "head": "Tankers burn in Hormuz",
-        "body": "Three oil tankers hit mines and catch fire; Iran escalates attacks.",
-        "tag": "ASIA",
-        "colour": ORANGE,
-    },
-    {
-        "n": 4,
-        "head": "Anthropic's $2tn IPO",
-        "body": "Record debut on Nasdaq, the largest ever.",
-        "tag": "NORTH AMERICA",
-        "colour": GREEN,
-    },
+# One tuple per story: number, headline, one-line summary, continent, colour.
+NEWS = [
+    (1, "Ukraine hits Crimea bridge again",
+     "Putin abandons the sea and energy ceasefire.",
+     "EUROPE", (64, 120, 200)),
+    (2, "UN court rules Myanmar genocide",
+     "Judges rule the state committed genocide against the Rohingya.",
+     "ASIA", (232, 122, 54)),
+    (3, "Tankers burn in Hormuz",
+     "Three oil tankers hit mines and catch fire; Iran escalates attacks.",
+     "ASIA", (232, 122, 54)),
+    (4, "Anthropic's $2tn IPO",
+     "Record debut on Nasdaq, the largest ever.",
+     "NORTH AMERICA", (46, 160, 120)),
 ]
 
-# Schematic flat shapes for the world map, in canvas coordinates.
-# Only the three continents with stories are coloured; the rest are grey.
-LAND = [
-    ("North America",
-     [(92, 238), (168, 196), (262, 194), (328, 222), (344, 262),
-      (306, 298), (298, 334), (256, 330), (214, 304), (148, 294),
-      (104, 268)],
-     GREEN, (112, 206), "NORTH AMERICA"),
-    ("South America",
-     [(336, 368), (386, 354), (414, 384), (400, 438), (370, 488),
-      (346, 458), (330, 408)],
-     GREY_LAND, None, None),
-    ("Europe",
-     [(478, 226), (524, 200), (564, 210), (574, 240), (554, 270),
-      (514, 276), (486, 260), (470, 244)],
-     BLUE, (466, 190), "EUROPE"),
-    ("Africa",
-     [(486, 300), (546, 290), (594, 306), (604, 350), (584, 414),
-      (544, 444), (506, 420), (480, 364), (476, 324)],
-     GREY_LAND, None, None),
-    ("Asia",
-     [(608, 210), (698, 180), (798, 176), (888, 196), (948, 230),
-      (954, 286), (904, 330), (844, 354), (760, 360), (690, 336),
-      (630, 300), (600, 256)],
-     ORANGE, (742, 238), "ASIA"),
-    ("Oceania",
-     [(830, 424), (884, 414), (918, 434), (904, 464), (854, 464),
-      (826, 446)],
-     GREY_LAND, None, None),
-]
+# Schematic land shapes: outline, fill, label position (or None), label text.
+LAND = {
+    "North America": (
+        [(88, 240), (150, 200), (240, 192), (320, 214), (350, 250),
+         (330, 290), (300, 330), (260, 336), (220, 306), (160, 296),
+         (110, 272)],
+        (46, 160, 120), (104, 198), "NORTH AMERICA"),
+    "South America": (
+        [(340, 372), (392, 358), (420, 388), (404, 444), (372, 494),
+         (344, 462), (328, 412)],
+        (196, 198, 192), None, None),
+    "Europe": (
+        [(474, 228), (516, 202), (556, 208), (572, 236), (560, 266),
+         (522, 278), (490, 264), (468, 246)],
+        (64, 120, 200), (456, 184), "EUROPE"),
+    "Africa": (
+        [(488, 302), (548, 292), (596, 308), (606, 352), (586, 416),
+         (546, 446), (508, 422), (482, 366), (478, 326)],
+        (196, 198, 192), None, None),
+    "Asia": (
+        [(606, 212), (696, 182), (796, 178), (886, 198), (946, 232),
+         (952, 288), (902, 332), (842, 356), (758, 362), (688, 338),
+         (628, 302), (598, 258)],
+        (232, 122, 54), (740, 236), "ASIA"),
+    "Oceania": (
+        [(828, 426), (882, 416), (916, 436), (902, 466), (852, 466),
+         (824, 448)],
+        (196, 198, 192), None, None),
+}
 
-# Where each story happened on the map: (x, y, story number).
-PINS = [
-    (540, 246, 1),   # Crimea bridge, Black Sea, eastern Europe
-    (836, 318, 2),   # Myanmar, south-east Asia
-    (668, 298, 3),   # Strait of Hormuz, Persian Gulf
-    (300, 266, 4),   # New York / Nasdaq, US east coast
-]
+# Where each story happened: (x, y, story number).
+PINS = ((544, 248, 1), (836, 318, 2), (680, 296, 3), (300, 266, 4))
 
 
-def wrap_lines(text, font, max_width, draw):
-    """Split text into lines that fit max_width pixels."""
-    words = text.split()
-    lines, current = [], ""
-    for word in words:
-        trial = (current + " " + word).strip()
-        if draw.textlength(trial, font=font) <= max_width:
-            current = trial
+def fit(d, s, f, width):
+    """Break a string into lines no wider than width pixels."""
+    out, line = [], ""
+    for word in s.split():
+        test = (line + " " + word).strip()
+        if d.textlength(test, font=f) <= width:
+            line = test
+        elif line:
+            out.append(line)
+            line = word
         else:
-            if current:
-                lines.append(current)
-            current = word
-    if current:
-        lines.append(current)
-    return lines
+            line = word
+    if line:
+        out.append(line)
+    return out
 
 
-def centred(draw, text, font, y, colour):
-    width = draw.textlength(text, font=font)
-    draw.text(((CANVAS_W - width) / 2, y), text, font=font, fill=colour)
+def centre(d, s, f, y, fill):
+    w = d.textlength(s, font=f)
+    d.text(((PAGE - w) / 2, y), s, font=f, fill=fill)
 
 
-def draw_header(draw):
-    draw.rectangle([0, 0, CANVAS_W, 168], fill=NAVY)
-    draw.rectangle([0, 168, CANVAS_W, 174], fill=GOLD)
-    centred(draw, "20 NOVEMBER 2026", TITLE_F, 14, WHITE)
-    centred(draw, "4 Stories \u00b7 3 Continents \u00b7 One Page",
-            SUB_F, 84, (214, 222, 235))
-    badge = "HORMUZ EDITION"
-    badge_w = draw.textlength(badge, font=BADGE_F) + 36
-    bx = (CANVAS_W - badge_w) / 2
-    draw.rounded_rectangle([bx, 124, bx + badge_w, 156], radius=15,
-                           fill=GOLD, outline=NAVY, width=2)
-    draw.text((bx + 18, 128), badge, font=BADGE_F, fill=NAVY)
+def header(d):
+    d.rectangle((0, 0, PAGE, 168), fill=PAINT["navy"])
+    d.rectangle((0, 168, PAGE, 174), fill=PAINT["gold"])
+    centre(d, "20 NOVEMBER 2026", BIG, 14, PAINT["white"])
+    centre(d, "4 Stories \u00b7 3 Continents \u00b7 One Page", SUB, 84,
+           PAINT["soft"])
+    label = "HORMUZ EDITION"
+    lw = d.textlength(label, font=EDITION) + 36
+    x0 = (PAGE - lw) / 2
+    d.rounded_rectangle((x0, 124, x0 + lw, 156), radius=15,
+                        fill=PAINT["gold"], outline=PAINT["navy"], width=2)
+    d.text((x0 + 18, 128), label, font=EDITION, fill=PAINT["navy"])
 
 
-def draw_map(draw):
-    draw.rounded_rectangle([28, 186, 996, 566], radius=18,
-                           fill=SEA, outline=SEA_LINE, width=2)
-    for _name, shape, fill, _pos, _label in LAND:
-        draw.polygon(shape, fill=fill, outline=WHITE, width=2)
-    for _name, _shape, _fill, pos, label in LAND:
+def world(d):
+    d.rounded_rectangle((28, 186, 996, 566), radius=18, fill=PAINT["sea"],
+                        outline=PAINT["sea_edge"], width=2)
+    for shape, fill, _pos, _tag in LAND.values():
+        d.polygon(shape, fill=fill, outline=PAINT["white"], width=2)
+    for _shape, _fill, pos, tag in LAND.values():
         if pos is None:
             continue
-        x, y = pos
-        draw.text((x + 1, y + 1), label, font=CONT_F, fill=WHITE)
-        draw.text((x, y), label, font=CONT_F, fill=NAVY)
-    for x, y, num in PINS:
-        draw.ellipse([x - 15, y - 15, x + 15, y + 15],
-                     fill=NAVY, outline=WHITE, width=3)
-        label = str(num)
-        lw = draw.textlength(label, font=NUM_F)
-        draw.text((x - lw / 2, y - 11), label, font=NUM_F, fill=WHITE)
+        d.text((pos[0] + 1, pos[1] + 1), tag, font=PLACE,
+               fill=PAINT["white"])
+        d.text(pos, tag, font=PLACE, fill=PAINT["navy"])
+    for x, y, n in PINS:
+        d.ellipse((x - 15, y - 15, x + 15, y + 15), fill=PAINT["navy"],
+                  outline=PAINT["white"], width=3)
+        s = str(n)
+        sw = d.textlength(s, font=PIN)
+        d.text((x - sw / 2, y - 11), s, font=PIN, fill=PAINT["white"])
 
 
-def draw_card(draw, story, x, y, w, h):
-    colour = story["colour"]
-    draw.rounded_rectangle([x, y, x + w, y + h], radius=14,
-                           fill=WHITE, outline=CARD_LINE, width=2)
-    draw.rounded_rectangle([x, y, x + 10, y + h], radius=5, fill=colour)
+def card(d, story, x, y, w, h):
+    n, head, body, tag, colour = story
+    d.rounded_rectangle((x, y, x + w, y + h), radius=14,
+                        fill=PAINT["white"], outline=PAINT["card_edge"],
+                        width=2)
+    d.rectangle((x, y, x + 10, y + h), fill=colour)
     cx, cy = x + 44, y + 40
-    draw.ellipse([cx - 22, cy - 22, cx + 22, cy + 22], fill=colour)
-    num = str(story["n"])
-    nw = draw.textlength(num, font=NUM_F)
-    draw.text((cx - nw / 2, cy - 12), num, font=NUM_F, fill=WHITE)
+    d.ellipse((cx - 22, cy - 22, cx + 22, cy + 22), fill=colour)
+    s = str(n)
+    sw = d.textlength(s, font=PIN)
+    d.text((cx - sw / 2, cy - 12), s, font=PIN, fill=PAINT["white"])
     tx = x + 78
     hy = y + 18
-    for line in wrap_lines(story["head"], HEAD_F, w - 100, draw):
-        draw.text((tx, hy), line, font=HEAD_F, fill=INK)
+    for line in fit(d, head, HEAD, w - 100):
+        d.text((tx, hy), line, font=HEAD, fill=PAINT["ink"])
         hy += 32
     sy = hy + 6
-    for line in wrap_lines(story["body"], BODY_F, w - 100, draw):
-        draw.text((tx, sy), line, font=BODY_F, fill=BODY_GREY)
+    for line in fit(d, body, BODY, w - 100):
+        d.text((tx, sy), line, font=BODY, fill=PAINT["grey"])
         sy += 27
-    tag = story["tag"]
-    tag_w = draw.textlength(tag, font=TAG_F) + 26
+    tw = d.textlength(tag, font=TAG) + 26
     ty = y + h - 40
-    draw.rounded_rectangle([tx, ty, tx + tag_w, ty + 28], radius=14,
-                           fill=colour)
-    draw.text((tx + 13, ty + 4), tag, font=TAG_F, fill=WHITE)
+    d.rounded_rectangle((tx, ty, tx + tw, ty + 28), radius=14, fill=colour)
+    d.text((tx + 13, ty + 4), tag, font=TAG, fill=PAINT["white"])
 
 
-def main():
-    image = Image.new("RGB", (CANVAS_W, CANVAS_H), CREAM)
-    draw = ImageDraw.Draw(image)
-    draw_header(draw)
-    draw_map(draw)
-    card_w, card_h = 466, 196
-    spots = [(28, 582), (530, 582), (28, 792), (530, 792)]
-    for story, (x, y) in zip(STORIES, spots):
-        draw_card(draw, story, x, y, card_w, card_h)
-    image.save(OUT_PATH, format="PNG")
+def build():
+    canvas = Canvas.new("RGB", (PAGE, PAGE), PAINT["cream"])
+    d = Pen.Draw(canvas)
+    header(d)
+    world(d)
+    spots = ((28, 582), (530, 582), (28, 792), (530, 792))
+    for story, (x, y) in zip(NEWS, spots):
+        card(d, story, x, y, 466, 196)
+    canvas.save("entry.png", "PNG")
 
 
-if __name__ == "__main__":
-    main()
+build()

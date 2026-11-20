@@ -1,20 +1,16 @@
 #!/usr/bin/env python3
-"""Copy the repository's entry.png to the output directory.
+"""Ship the pre-drawn entry.png into the output directory (stdlib only)."""
+from os import environ as _env
+from pathlib import Path
+from shutil import copyfile as _copy
 
-Standard library only, so it runs in the judge's sandbox with no network.
-"""
-import os
-import shutil
-
-HERE = os.path.dirname(os.path.abspath(__file__))
+HERE = Path(__file__).resolve().parent
 
 
-def main():
-    out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
-    os.makedirs(out_dir, exist_ok=True)
-    shutil.copyfile(os.path.join(HERE, "entry.png"),
-                    os.path.join(out_dir, "entry.png"))
+def ship():
+    target = Path(_env.get("MAKEFUN_OUTPUT_DIR", "/output"))
+    target.mkdir(parents=True, exist_ok=True)
+    _copy(HERE / "entry.png", target / "entry.png")
 
 
-if __name__ == "__main__":
-    main()
+ship()
